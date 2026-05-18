@@ -1,47 +1,63 @@
-# Signal HN - Hacker News Reader
+# Signal HN
 
-A production-style Hacker News reader built with Flutter, BLoC, Dio, GoRouter, GetIt, and feature-first clean architecture.
+A polished Hacker News reader built with Flutter. Signal HN focuses on a fast reading experience, clean architecture, smooth scrolling, typed error handling, and a scalable feature-first codebase.
 
-This project is designed to feel closer to a real startup mobile product than a basic assignment app. It includes a polished home feed, story detail screen, lazy nested comments, theme support, shimmer loading states, typed error handling, dependency injection, and a scalable folder structure.
+The app loads top Hacker News stories from the official Firebase API, supports pagination and pull-to-refresh, opens story detail pages, renders nested comments, and keeps lightweight in-memory state for read and saved stories.
+
+## APK Download
+
+You can download and install the Android APK from Google Drive:
+
+[Download Signal HN APK](https://drive.google.com/file/d/11QG2bzSRwdM-1tt068uKdpnAJ74SXDBM/view?usp=drive_link)
+
+## Screenshots
+
+| Home | Search | Story Detail |
+| --- | --- | --- |
+| ![Home screen](screenshots/flutter_01.png) | ![Search screen](screenshots/flutter_02.png) | ![Story detail screen](screenshots/flutter_03.png) |
+
+| Comments | Dark Mode | Saved State |
+| --- | --- | --- |
+| ![Comments screen](screenshots/flutter_04.png) | ![Dark mode screen](screenshots/flutter_05.png) | ![Saved story state](screenshots/flutter_06.png) |
+
+| Article Actions | Discussion | Loading State |
+| --- | --- | --- |
+| ![Article actions](screenshots/flutter_07.png) | ![Discussion view](screenshots/flutter_08.png) | ![Loading state](screenshots/flutter_09.png) |
 
 ## Features
 
-- Top Hacker News stories feed
-- Story detail screen with article actions
-- Recursive nested comment threads
-- Lazy loading replies on expand
+- Top Hacker News story feed
+- Infinite scrolling with paginated loading
+- Pull-to-refresh
 - Search across loaded stories by title, author, and domain
-- Pull to refresh
-- Pagination/infinite scrolling
-- Bookmark and read/unread UI state
-- Light and dark themes
-- Shimmer skeleton loading
-- Friendly error and empty states
-- HTML comment rendering with `flutter_html`
-- External article and Hacker News discussion links
-- Share action
-- Responsive, sliver-based UI
-- Scroll-performance optimizations
+- Story detail route with direct `/story/:id` loading
+- Recursive nested comment threads
+- Lazy reply loading when a thread is expanded
+- Save/bookmark stories from home or detail
+- Read-state marking when a story is opened
+- Share story links
+- Open article and Hacker News discussion links externally
+- Light and dark theme support
+- Shimmer skeleton loading states
+- Reusable empty, error, badge, metadata, and icon-button widgets
 
 ## Tech Stack
 
-- Flutter
-- BLoC / `flutter_bloc`
-- Dio
-- GoRouter
-- GetIt
-- Equatable
-- Google Fonts
-- Shimmer
-- flutter_html
-- url_launcher
-- share_plus
-- intl
-- flutter_animate
+- Flutter and Dart
+- `flutter_bloc` for state management
+- `go_router` for declarative routing
+- `dio` for API requests
+- `get_it` for dependency injection
+- `equatable` for value equality
+- `flutter_html` for story/comment HTML rendering
+- `url_launcher` for external links
+- `share_plus` for sharing
+- `google_fonts` for typography
+- `shimmer` and `flutter_animate` for loading and motion polish
 
 ## API
 
-The app uses the official Hacker News Firebase API:
+Signal HN uses the official Hacker News Firebase API:
 
 ```text
 Top stories:
@@ -51,63 +67,35 @@ Item detail:
 https://hacker-news.firebaseio.com/v0/item/<id>.json
 ```
 
-Stories and comments both come from the item detail endpoint. Hacker News represents nesting through IDs:
-
-```text
-Story
-  kids: [commentId, commentId, commentId]
-
-Comment
-  kids: [replyId, replyId, replyId]
-```
-
-The app maps `kids` on a story to `commentIds`, and maps `kids` on a comment to `replyIds`.
+Stories and comments are both returned as HN items. Story `kids` are mapped to root comment IDs, while comment `kids` are mapped to reply IDs.
 
 ## Architecture
 
-The codebase uses feature-first clean architecture:
+The project follows a feature-first clean architecture style.
 
 ```text
 lib/
   core/
+    animations/
     constants/
     errors/
+    extensions/
     network/
     services/
-    utils/
     theme/
+    utils/
     widgets/
-    extensions/
-    animations/
 
   features/
     home/
       data/
-        datasource/
-        models/
-        repositories/
       domain/
-        entities/
-        repositories/
-        usecases/
       presentation/
-        bloc/
-        pages/
-        widgets/
 
     detail/
       data/
-        datasource/
-        models/
-        repositories/
       domain/
-        entities/
-        repositories/
-        usecases/
       presentation/
-        bloc/
-        pages/
-        widgets/
 
   routes/
   app.dart
@@ -115,141 +103,89 @@ lib/
   main.dart
 ```
 
-### Layer Responsibilities
+## Layer Responsibilities
 
-`data`
+`core` contains shared infrastructure such as networking, failures, result wrappers, theme, reusable widgets, extensions, animations, and platform services.
 
-Handles API calls, DTO/model parsing, repository implementations, and local in-memory caching.
+`data` contains remote data sources, API parsing, model classes, and repository implementations.
 
-`domain`
+`domain` contains entities, repository contracts, and use cases. This layer stays independent from Flutter widgets.
 
-Contains entities, abstract repository contracts, and use cases. This layer is independent of Flutter UI.
+`presentation` contains pages, widgets, and BLoCs. UI state is driven by immutable state objects and feature events.
 
-`presentation`
+## Project Flow
 
-Contains BLoCs, pages, and widgets. UI state is driven by immutable BLoC state instead of business logic inside widgets.
+When the app starts, `main.dart` initializes Flutter bindings, configures dependency injection through `injection_container.dart`, and runs `HackerNewsApp`.
 
-`core`
+`HackerNewsApp` sets up global providers for theme state and the home feed BLoC. The app uses `MaterialApp.router`, so navigation is handled by `go_router` in `app_router.dart`.
 
-Shared infrastructure used across features: networking, errors, result wrapper, theme, reusable widgets, extensions, and services.
+The home feature loads top story IDs from Hacker News, fetches story details page by page, filters invalid/deleted items, and renders the feed through `HomePage` and `StoryCard` widgets.
+
+The detail feature opens a selected story, loads its root comments, and fetches nested replies only when the user expands a thread. This avoids downloading large discussions upfront and keeps the UI responsive.
+
+## Data Flow
+
+```text
+UI Widget
+  -> BLoC Event
+  -> Use Case
+  -> Repository Contract
+  -> Repository Implementation
+  -> Remote Data Source
+  -> ApiClient / Hacker News API
+  -> Model
+  -> Entity
+  -> BLoC State
+  -> UI Widget
+```
+
+This separation keeps API logic, business rules, and UI rendering independent. It also makes the app easier to test and extend because each feature owns its own data, domain, and presentation layers.
 
 ## Important Files
 
 - `lib/main.dart` - app entry point
-- `lib/app.dart` - root `MaterialApp.router` and global providers
-- `lib/injection_container.dart` - GetIt dependency injection setup
-- `lib/routes/app_router.dart` - GoRouter routes
-- `lib/core/network/api_client.dart` - Dio setup, logging, timeout, retry
-- `lib/core/utils/result.dart` - typed success/error wrapper
-- `lib/core/errors/` - API exception and failure mapping
-- `lib/core/theme/app_theme.dart` - light/dark app themes
+- `lib/app.dart` - root app widget and global BLoC providers
+- `lib/injection_container.dart` - GetIt dependency setup
+- `lib/routes/app_router.dart` - app routes
+- `lib/core/network/api_client.dart` - Dio client and API exception mapping
+- `lib/core/theme/app_theme.dart` - light and dark themes
 - `lib/features/home/presentation/bloc/` - home feed state management
 - `lib/features/detail/presentation/bloc/` - detail/comment state management
 - `lib/features/detail/presentation/widgets/comment_thread.dart` - recursive comment UI
 
 ## State Management
 
-The app uses BLoC for feature state.
+`HomeBloc` handles initial story loading, refresh, pagination, search, read state, saved story IDs, and home screen status states.
 
-### Home BLoC
-
-Responsible for:
-
-- Initial loading
-- Refreshing
-- Pagination
-- Search query
-- Read state
-- Bookmark state
-- Empty/error/success states
-
-Home state stores all loaded stories and exposes `visibleStories`, which filters the loaded feed when search is active.
-
-### Detail BLoC
-
-Responsible for:
-
-- Loading root comments
-- Expanding/collapsing replies
-- Lazy loading nested replies
-- Tracking loading reply IDs
-- Storing replies by parent comment ID
-
-Replies are stored like this:
+`DetailBloc` handles root comment loading, reply expansion/collapse, lazy reply fetching, and per-thread reply loading state. Replies are grouped by parent comment ID:
 
 ```dart
 Map<int, List<Comment>> repliesByParent;
 ```
 
-Example:
-
-```text
-repliesByParent[100] = [Comment 201, Comment 202]
-repliesByParent[201] = [Comment 301]
-```
-
-This avoids building one huge nested object tree and keeps loading incremental.
-
-## Recursive Comment System
-
-The comment system is lazy and recursive.
-
-1. The story detail page receives the story's root `commentIds`.
-2. `DetailBloc` fetches the first level of comments.
-3. Each `Comment` contains its own `replyIds`.
-4. When the user taps "View replies", the bloc fetches only those reply IDs.
-5. `CommentThread` renders replies by recursively creating more `CommentThread` widgets.
-
-This design supports deep nested threads without downloading everything upfront.
-
-## Error Handling
-
-Networking errors are mapped into user-friendly failures:
-
-- Network errors
-- Timeout errors
-- Server errors
-- Not found
-- Empty data
-- Unknown errors
-
-The UI consumes these failures through reusable error widgets and retry actions.
-
-## Performance Notes
-
-Several choices are made to keep scrolling smooth:
-
-- Sliver-based screens
-- Lazy list rendering
-- Paginated story loading
-- Lazy comment reply loading
-- `RepaintBoundary` around heavy list items
-- Avoiding expensive intrinsic layout in comment trees
-- Reduced shadow blur on cards
-- Detail reading progress uses `ValueNotifier` instead of rebuilding the whole page
-- Scroll controller guards to prevent crashes during fast gestures
+This keeps large discussions responsive because replies are fetched only when the user expands a thread.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Flutter latest stable
-- Dart SDK compatible with the project SDK constraint
-- Android Studio, VS Code, or another Flutter-capable IDE
+- Flutter stable SDK
+- Dart SDK compatible with the `pubspec.yaml` SDK constraint
+- Android Studio, VS Code, or another Flutter-capable editor
 
-Check your Flutter installation:
+Check your Flutter setup:
 
 ```bash
 flutter doctor
 ```
 
-### Install Dependencies
+Install dependencies:
 
 ```bash
 flutter pub get
 ```
 
-### Run the App
+Run the app:
 
 ```bash
 flutter run
@@ -261,33 +197,27 @@ Run on Chrome:
 flutter run -d chrome
 ```
 
-Run on a web server:
-
-```bash
-flutter run -d web-server
-```
-
 ## Quality Checks
 
-Format:
+Format the project:
 
 ```bash
 dart format lib test
 ```
 
-Analyze:
+Analyze Dart code:
 
 ```bash
-flutter analyze
+dart analyze lib
 ```
 
-Test:
+Run tests:
 
 ```bash
 flutter test
 ```
 
-Build web:
+Build for web:
 
 ```bash
 flutter build web
@@ -296,30 +226,16 @@ flutter build web
 ## Current Limitations
 
 - Search filters only stories already loaded into the feed.
-- Bookmark/read state is currently in-memory only.
-- The direct detail route expects a story object from home navigation.
-- Comment replies are capped in repository fetching to keep large threads responsive.
-
-These are intentional tradeoffs for a clean assignment/demo build and can be extended with persistence, background prefetching, and offline caching.
+- Saved and read state is in memory only and resets after app restart.
+- The app depends on the public Hacker News Firebase API.
+- Large comment threads are loaded incrementally instead of all at once.
 
 ## Possible Improvements
 
-- Persist bookmarks and read status with HydratedBloc or local storage
-- Add offline story/comment cache
-- Add full remote search or Algolia HN search
-- Add unit tests for repositories and BLoCs
-- Add golden tests for theme/UI states
-- Add deep-link detail loading by story ID
+- Persist saved/read state with local storage or HydratedBloc
+- Add an offline cache for stories and comments
+- Add Algolia Hacker News search for full remote search
+- Add BLoC and repository unit tests
+- Add golden tests for major UI states
+- Add a dedicated saved stories screen
 - Add comment sorting and collapse-all controls
-
-## Project Goal
-
-The goal of this project is to demonstrate:
-
-- Clean Architecture
-- Scalable feature-first structure
-- Proper BLoC state management
-- Typed error handling
-- Premium Flutter UI implementation
-- Recursive nested comment handling
-- Maintainable production-oriented code
