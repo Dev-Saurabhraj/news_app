@@ -4,10 +4,16 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../errors/failures.dart';
 
 class FailureView extends StatelessWidget {
-  const FailureView({required this.failure, required this.onRetry, super.key});
+  const FailureView({
+    required this.failure,
+    required this.onRetry,
+    super.key,
+    this.title = 'Could not load stories',
+  });
 
   final Failure failure;
   final VoidCallback onRetry;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +42,7 @@ class FailureView extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              'Could not load stories',
+              title,
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),

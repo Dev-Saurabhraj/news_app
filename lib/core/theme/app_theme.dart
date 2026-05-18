@@ -103,7 +103,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         color: surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       chipTheme: base.chipTheme.copyWith(
         backgroundColor: base.colorScheme.primary.withValues(alpha: 0.1),

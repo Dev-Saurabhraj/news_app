@@ -6,7 +6,9 @@ import '../../../../core/extensions/date_time_extensions.dart';
 import '../../../../core/extensions/string_extensions.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_icon_button.dart';
+import '../../../../core/widgets/story_meta_item.dart';
 import '../../../../injection_container.dart';
 import '../../domain/entities/story.dart';
 import '../bloc/home_bloc.dart';
@@ -46,7 +48,7 @@ class _StoryCardState extends State<StoryCard> {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(8),
                 onTap: () {
                   sl<HapticService>().selection();
                   context.read<HomeBloc>().add(HomeStoryReadToggled(story.id));
@@ -57,12 +59,12 @@ class _StoryCardState extends State<StoryCard> {
                   );
                 },
                 child: Ink(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: appColors.surfaceRaised.withValues(
                       alpha: theme.brightness == Brightness.dark ? 0.84 : 0.92,
                     ),
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: appColors.subtleBorder.withValues(alpha: 0.7),
                     ),
@@ -83,7 +85,7 @@ class _StoryCardState extends State<StoryCard> {
                     children: [
                       Row(
                         children: [
-                          _Pill(
+                          AppBadge(
                             icon: isTrending
                                 ? Icons.trending_up_rounded
                                 : Icons.auto_awesome_rounded,
@@ -111,6 +113,7 @@ class _StoryCardState extends State<StoryCard> {
                                 : Icons.bookmark_border_rounded,
                             tooltip: 'Bookmark',
                             isActive: story.isBookmarked,
+                            size: 40,
                             onPressed: () {
                               sl<HapticService>().lightImpact();
                               context.read<HomeBloc>().add(
@@ -135,21 +138,25 @@ class _StoryCardState extends State<StoryCard> {
                         spacing: 12,
                         runSpacing: 8,
                         children: [
-                          _Meta(
+                          StoryMetaItem(
                             icon: Icons.person_outline_rounded,
                             label: story.author,
+                            compact: true,
                           ),
-                          _Meta(
+                          StoryMetaItem(
                             icon: Icons.bolt_rounded,
                             label: '${story.score} pts',
+                            compact: true,
                           ),
-                          _Meta(
+                          StoryMetaItem(
                             icon: Icons.chat_bubble_outline_rounded,
                             label: '${story.commentCount} comments',
+                            compact: true,
                           ),
-                          _Meta(
+                          StoryMetaItem(
                             icon: Icons.schedule_rounded,
                             label: story.time.timeAgo,
+                            compact: true,
                           ),
                         ],
                       ),
@@ -161,66 +168,6 @@ class _StoryCardState extends State<StoryCard> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.icon, required this.label, required this.color});
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: color),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Meta extends StatelessWidget {
-  const _Meta({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
     );
   }
 }

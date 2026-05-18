@@ -6,10 +6,19 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/extensions/date_time_extensions.dart';
 import '../../../../core/extensions/string_extensions.dart';
+import '../../../../core/services/haptic_service.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/result.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_icon_button.dart';
 import '../../../../core/widgets/failure_view.dart';
+import '../../../../core/widgets/story_meta_item.dart';
 import '../../../../injection_container.dart';
 import '../../../home/domain/entities/story.dart';
+import '../../../home/domain/usecases/get_story.dart';
+import '../../../home/presentation/bloc/home_bloc.dart';
+import '../../../home/presentation/bloc/home_event.dart';
+import '../../../home/presentation/bloc/home_state.dart';
 import '../bloc/detail_bloc.dart';
 import '../bloc/detail_event.dart';
 import '../bloc/detail_state.dart';
@@ -29,11 +38,21 @@ class StoryDetailPage extends StatefulWidget {
 class _StoryDetailPageState extends State<StoryDetailPage> {
   final _scrollController = ScrollController();
   final _progress = ValueNotifier<double>(0);
+  Future<Result<Story>>? _storyFuture;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_updateProgress);
+    _storyFuture = widget.story == null ? sl<GetStory>()(widget.storyId) : null;
+  }
+
+  @override
+  void didUpdateWidget(covariant StoryDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.story == null && widget.storyId != oldWidget.storyId) {
+      _storyFuture = sl<GetStory>()(widget.storyId);
+    }
   }
 
   @override
@@ -62,14 +81,19 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
   Widget build(BuildContext context) {
     final story = widget.story;
     if (story == null) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: const Center(
-          child: Text('Open this story from the home feed to load details.'),
-        ),
+      return _StoryLoader(
+        future: _storyFuture!,
+        onLoaded: (story) => _buildStoryScaffold(context, story),
+        onRetry: () => setState(() {
+          _storyFuture = sl<GetStory>()(widget.storyId);
+        }),
       );
     }
 
+    return _buildStoryScaffold(context, story);
+  }
+
+  Widget _buildStoryScaffold(BuildContext context, Story story) {
     return BlocProvider(
       create: (_) => sl<DetailBloc>()
         ..add(DetailStarted(storyId: story.id, commentIds: story.commentIds)),
@@ -109,10 +133,27 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    AppIconButton(
-                      icon: Icons.bookmark_border_rounded,
-                      tooltip: 'Bookmark',
-                      onPressed: () {},
+                    BlocSelector<HomeBloc, HomeState, bool>(
+                      selector: (state) =>
+                          state.bookmarkedStoryIds.contains(story.id) ||
+                          state.stories.any(
+                            (item) => item.id == story.id && item.isBookmarked,
+                          ),
+                      builder: (context, isBookmarked) {
+                        return AppIconButton(
+                          icon: isBookmarked
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded,
+                          tooltip: isBookmarked ? 'Saved' : 'Save',
+                          isActive: isBookmarked,
+                          onPressed: () {
+                            sl<HapticService>().lightImpact();
+                            context.read<HomeBloc>().add(
+                              HomeBookmarkToggled(story.id),
+                            );
+                          },
+                        );
+                      },
                     ),
                     const SizedBox(width: 12),
                   ],
@@ -166,21 +207,31 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                                 spacing: 8,
                                 runSpacing: 8,
                                 children: [
-                                  _Chip(
+                                  AppBadge(
                                     icon: Icons.person_outline_rounded,
                                     label: story.author,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
-                                  _Chip(
+                                  AppBadge(
                                     icon: Icons.bolt_rounded,
                                     label: '${story.score} points',
+                                    color: AppTheme.orange,
                                   ),
-                                  _Chip(
+                                  AppBadge(
                                     icon: Icons.chat_bubble_outline_rounded,
                                     label: '${story.commentCount} comments',
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.tertiary,
                                   ),
-                                  _Chip(
+                                  AppBadge(
                                     icon: Icons.schedule_rounded,
                                     label: story.time.timeAgo,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.secondary,
                                   ),
                                 ],
                               ),
@@ -233,6 +284,12 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                           'Discussion',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
+                        const SizedBox(height: 8),
+                        StoryMetaItem(
+                          icon: Icons.forum_rounded,
+                          label:
+                              '${story.commentCount} comments from Hacker News',
+                        ),
                         const SizedBox(height: 14),
                       ],
                     ),
@@ -255,6 +312,7 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                       return SliverFillRemaining(
                         child: FailureView(
                           failure: state.failure!,
+                          title: 'Could not load discussion',
                           onRetry: () => context.read<DetailBloc>().add(
                             DetailStarted(
                               storyId: story.id,
@@ -306,18 +364,46 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.label});
+class _StoryLoader extends StatelessWidget {
+  const _StoryLoader({
+    required this.future,
+    required this.onLoaded,
+    required this.onRetry,
+  });
 
-  final IconData icon;
-  final String label;
+  final Future<Result<Story>> future;
+  final Widget Function(Story story) onLoaded;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(icon, size: 16),
-      label: Text(label),
-      visualDensity: VisualDensity.compact,
+    return FutureBuilder<Result<Story>>(
+      future: future,
+      builder: (context, snapshot) {
+        final result = snapshot.data;
+        if (result is Success<Story>) {
+          return onLoaded(result.data);
+        }
+        if (result is Error<Story>) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: FailureView(
+              failure: result.failure,
+              title: 'Could not load this story',
+              onRetry: onRetry,
+            ),
+          );
+        }
+
+        return const Scaffold(
+          body: Center(
+            child: SizedBox.square(
+              dimension: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            ),
+          ),
+        );
+      },
     );
   }
 }

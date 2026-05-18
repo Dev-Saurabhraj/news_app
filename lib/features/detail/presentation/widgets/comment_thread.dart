@@ -28,6 +28,7 @@ class CommentThread extends StatelessWidget {
         final theme = Theme.of(context);
         final colors = theme.colorScheme;
         final maxIndentDepth = comment.depth.clamp(0, 6);
+        final authorInitial = comment.author.trim().characters.firstOrNull;
         return Padding(
           padding: EdgeInsets.only(left: maxIndentDepth * 16.0, bottom: 14),
           child: RepaintBoundary(
@@ -57,7 +58,7 @@ class CommentThread extends StatelessWidget {
                               alpha: 0.13,
                             ),
                             child: Text(
-                              comment.author.characters.first.toUpperCase(),
+                              (authorInitial ?? '?').toUpperCase(),
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: colors.primary,
                               ),

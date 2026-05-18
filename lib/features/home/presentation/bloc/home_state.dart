@@ -14,6 +14,7 @@ class HomeState extends Equatable {
     this.hasReachedEnd = false,
     this.isPaginating = false,
     this.searchQuery = '',
+    this.bookmarkedStoryIds = const <int>{},
   });
 
   final HomeStatus status;
@@ -23,6 +24,7 @@ class HomeState extends Equatable {
   final bool hasReachedEnd;
   final bool isPaginating;
   final String searchQuery;
+  final Set<int> bookmarkedStoryIds;
 
   bool get isSearching => searchQuery.trim().isNotEmpty;
 
@@ -47,6 +49,7 @@ class HomeState extends Equatable {
     bool? hasReachedEnd,
     bool? isPaginating,
     String? searchQuery,
+    Set<int>? bookmarkedStoryIds,
   }) {
     return HomeState(
       status: status ?? this.status,
@@ -56,6 +59,7 @@ class HomeState extends Equatable {
       hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
       isPaginating: isPaginating ?? this.isPaginating,
       searchQuery: searchQuery ?? this.searchQuery,
+      bookmarkedStoryIds: bookmarkedStoryIds ?? this.bookmarkedStoryIds,
     );
   }
 
@@ -68,5 +72,6 @@ class HomeState extends Equatable {
     hasReachedEnd,
     isPaginating,
     searchQuery,
+    bookmarkedStoryIds,
   ];
 }

@@ -64,7 +64,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     final result = await _getTopStories(page: page, pageSize: _pageSize);
     switch (result) {
       case Success<List<Story>>(:final data):
-        final stories = replace ? data : <Story>[...state.stories, ...data];
+        final stories = replace
+            ? _applyBookmarks(data)
+            : <Story>[...state.stories, ..._applyBookmarks(data)];
         emit(
           state.copyWith(
             status: stories.isEmpty ? HomeStatus.empty : HomeStatus.success,
@@ -105,14 +107,37 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   void _onBookmarkToggled(HomeBookmarkToggled event, Emitter<HomeState> emit) {
+    final bookmarkedIds = {...state.bookmarkedStoryIds};
+    final isBookmarked = bookmarkedIds.contains(event.storyId);
+    if (isBookmarked) {
+      bookmarkedIds.remove(event.storyId);
+    } else {
+      bookmarkedIds.add(event.storyId);
+    }
+
     emit(
       state.copyWith(
+        bookmarkedStoryIds: bookmarkedIds,
         stories: _mapStory(
           event.storyId,
-          (story) => story.copyWith(isBookmarked: !story.isBookmarked),
+          (story) => story.copyWith(isBookmarked: !isBookmarked),
         ),
       ),
     );
+  }
+
+  List<Story> _applyBookmarks(List<Story> stories) {
+    if (state.bookmarkedStoryIds.isEmpty) {
+      return stories;
+    }
+
+    return stories
+        .map(
+          (story) => story.copyWith(
+            isBookmarked: state.bookmarkedStoryIds.contains(story.id),
+          ),
+        )
+        .toList(growable: false);
   }
 
   List<Story> _mapStory(int id, Story Function(Story story) transform) {
