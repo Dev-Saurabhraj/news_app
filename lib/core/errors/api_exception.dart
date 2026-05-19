@@ -32,11 +32,29 @@ class ApiException implements Exception {
         );
       case DioExceptionType.badResponse:
         final status = error.response?.statusCode;
-        if (status == 404) {
+        if (status == 401) {
+          return const ApiException(
+            'Unauthorized access to Hacker News.',
+            statusCode: 401,
+            type: FailureType.unauthorized,
+          );
+        } else if (status == 404) {
           return const ApiException(
             'This Hacker News item could not be found.',
             statusCode: 404,
             type: FailureType.notFound,
+          );
+        } else if (status == 429) {
+          return const ApiException(
+            'Too many requests. Please wait and try again.',
+            statusCode: 429,
+            type: FailureType.server,
+          );
+        } else if (status == 503) {
+          return const ApiException(
+            'Hacker News service is temporarily unavailable. Retrying...',
+            statusCode: 503,
+            type: FailureType.server,
           );
         }
         return ApiException(

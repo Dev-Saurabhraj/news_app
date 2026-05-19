@@ -13,12 +13,22 @@ class CommentRemoteDataSourceImpl implements CommentRemoteDataSource {
 
   @override
   Future<CommentModel?> getComment(int id) async {
-    final data = await _client.get<Map<String, dynamic>>(ApiConstants.item(id));
-    if (data['deleted'] == true ||
-        data['dead'] == true ||
-        data['type'] != 'comment') {
-      return null;
+    try {
+      final data = await _client.get<Map<String, dynamic>>(
+        ApiConstants.item(id),
+      );
+
+      // Check for null or deleted/dead items
+      if (data.isEmpty) return null;
+      if (data['deleted'] == true || data['dead'] == true) return null;
+      if (data['type'] != 'comment') return null;
+
+      // Validate required fields before parsing
+      if (data['id'] == null) return null;
+
+      return CommentModel.fromJson(data);
+    } catch (error) {
+      rethrow;
     }
-    return CommentModel.fromJson(data);
   }
 }

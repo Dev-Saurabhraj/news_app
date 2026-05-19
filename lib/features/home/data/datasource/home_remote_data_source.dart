@@ -14,18 +14,42 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
 
   @override
   Future<List<int>> getTopStoryIds() async {
-    final data = await _client.get<List<dynamic>>(ApiConstants.topStories);
-    return data.cast<int>();
+    try {
+      final data = await _client.get<List<dynamic>>(ApiConstants.topStories);
+      if (data.isEmpty) {
+        return <int>[];
+      }
+      // Safely cast to int, filtering out non-integer values
+      final storyIds = <int>[];
+      for (final item in data) {
+        if (item is int) {
+          storyIds.add(item);
+        }
+      }
+      return storyIds;
+    } catch (error) {
+      rethrow;
+    }
   }
 
   @override
   Future<StoryModel?> getStory(int id) async {
-    final data = await _client.get<Map<String, dynamic>>(ApiConstants.item(id));
-    if (data['deleted'] == true ||
-        data['dead'] == true ||
-        data['type'] != 'story') {
-      return null;
+    try {
+      final data = await _client.get<Map<String, dynamic>>(
+        ApiConstants.item(id),
+      );
+
+      // Check for null or deleted/dead items
+      if (data.isEmpty) return null;
+      if (data['deleted'] == true || data['dead'] == true) return null;
+      if (data['type'] != 'story') return null;
+
+      // Validate required fields before parsing
+      if (data['id'] == null) return null;
+
+      return StoryModel.fromJson(data);
+    } catch (error) {
+      rethrow;
     }
-    return StoryModel.fromJson(data);
   }
 }

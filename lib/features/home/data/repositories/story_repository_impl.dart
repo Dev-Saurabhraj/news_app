@@ -12,6 +12,8 @@ class StoryRepositoryImpl implements StoryRepository {
   List<int>? _cachedIds;
   final Map<int, Story> _storyCache = <int, Story>{};
 
+  static const _requestTimeout = Duration(seconds: 30);
+
   @override
   Future<Result<List<Story>>> getTopStories({
     required int page,
@@ -19,14 +21,33 @@ class StoryRepositoryImpl implements StoryRepository {
   }) async {
     try {
       _cachedIds ??= await _remoteDataSource.getTopStoryIds();
+
+      if (_cachedIds == null || _cachedIds!.isEmpty) {
+        return const Error(
+          Failure(message: 'No stories available.', type: FailureType.empty),
+        );
+      }
+
       final start = page * pageSize;
       if (start >= _cachedIds!.length) return const Success(<Story>[]);
+
       final ids = _cachedIds!.skip(start).take(pageSize).toList();
-      final stories = await Future.wait(ids.map(getStory));
+
+      // Use timeout to prevent hanging on large concurrent requests
+      final stories = await Future.wait(ids.map(getStory), eagerError: true)
+          .timeout(
+            _requestTimeout,
+            onTimeout: () => throw const ApiException(
+              'Request timed out while loading stories.',
+              type: FailureType.timeout,
+            ),
+          );
+
       final successful = stories
           .whereType<Success<Story>>()
           .map((result) => result.data)
           .toList();
+
       if (successful.isEmpty) {
         return const Error(
           Failure(
@@ -38,9 +59,12 @@ class StoryRepositoryImpl implements StoryRepository {
       return Success(successful);
     } on ApiException catch (error) {
       return Error(error.toFailure());
-    } catch (_) {
-      return const Error(
-        Failure(message: 'Something went wrong while fetching top stories.'),
+    } catch (error) {
+      return Error(
+        Failure(
+          message: 'Something went wrong while fetching top stories: $error',
+          type: FailureType.unknown,
+        ),
       );
     }
   }
@@ -50,6 +74,7 @@ class StoryRepositoryImpl implements StoryRepository {
     try {
       final cached = _storyCache[id];
       if (cached != null) return Success(cached);
+
       final story = await _remoteDataSource.getStory(id);
       if (story == null) {
         return const Error(
@@ -63,10 +88,29 @@ class StoryRepositoryImpl implements StoryRepository {
       return Success(story);
     } on ApiException catch (error) {
       return Error(error.toFailure());
-    } catch (_) {
-      return const Error(
-        Failure(message: 'Something went wrong while fetching the story.'),
+    } catch (error) {
+      return Error(
+        Failure(
+          message: 'Something went wrong while fetching the story: $error',
+          type: FailureType.unknown,
+        ),
       );
     }
+  }
+
+  /// Clear all cached stories
+  void clearStoryCache() {
+    _storyCache.clear();
+  }
+
+  /// Clear cached story IDs (useful when refreshing the feed)
+  void clearIdCache() {
+    _cachedIds = null;
+  }
+
+  /// Clear both caches
+  void clearAllCaches() {
+    clearStoryCache();
+    clearIdCache();
   }
 }
